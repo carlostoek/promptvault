@@ -336,6 +336,12 @@
     <div id="view-modal" class="fixed inset-0 z-50 hidden">
         <div class="absolute inset-0 bg-black/90 backdrop-blur-sm" onclick="closeViewModal()"></div>
         <div class="absolute inset-x-4 top-20 bottom-24 bg-dark-900 rounded-3xl overflow-hidden flex flex-col animate-fade-in">
+
+        <!-- Handle visual para swipe -->
+        <div class="flex justify-center pt-3 pb-1 cursor-grab">
+            <div class="w-10 h-1 rounded-full bg-dark-600"></div>
+        </div>
+
             <div class="flex items-center justify-between px-4 py-4 border-b border-dark-700">
                 <div class="flex items-center gap-2">
                     <span id="view-type-icon" class="text-lg"></span>
@@ -543,6 +549,7 @@
             checkApiKey();
             document.getElementById('api-key-input').value = CONFIG.apiKey;
             document.getElementById('model-select').value = CONFIG.model;
+            initSwipeToClose();
         });
 
         // ─── Settings ─────────────────────────────────────────────────────────────────
@@ -1248,6 +1255,35 @@ Remember: Return ONLY JSON, no other text.`;
                 toast.classList.remove('translate-y-0');
                 toast.classList.add('-translate-y-20');
             }, 2500);
+        }
+
+        // ─── Swipe to close ───────────────────────────────────────────────────────────────
+        function initSwipeToClose() {
+            const inner = document.querySelector('#view-modal .absolute.inset-x-4');
+            const scrollArea = inner.querySelector('.overflow-y-auto');
+            let startY = 0, startTime = 0;
+
+            inner.addEventListener('touchstart', e => {
+                startY = e.touches[0].clientY;
+                startTime = Date.now();
+            }, { passive: true });
+
+            inner.addEventListener('touchend', e => {
+                const deltaY = e.changedTouches[0].clientY - startY;
+                const velocity = Math.abs(deltaY) / (Date.now() - startTime); // px/ms
+
+                const atTop    = scrollArea.scrollTop <= 0;
+                const atBottom = scrollArea.scrollTop + scrollArea.clientHeight >= scrollArea.scrollHeight - 2;
+
+                const fastSwipe = velocity > 0.4 && Math.abs(deltaY) > 50;
+                const bigSwipe  = Math.abs(deltaY) > 130;
+
+                if (fastSwipe || bigSwipe) {
+                    if (deltaY > 0 && atTop)    closeViewModal(); // jala hacia abajo desde arriba
+                    if (deltaY < 0 && atBottom) closeViewModal(); // jala hacia arriba desde abajo
+                    if (Math.abs(deltaY) > 220) closeViewModal(); // swipe muy largo en cualquier dirección
+                }
+            }, { passive: true });
         }
 
         document.addEventListener('keydown', (e) => {
