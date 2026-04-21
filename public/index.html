@@ -316,6 +316,25 @@
                         <label class="block text-xs font-medium text-gray-500 mb-1.5">Atributos detectados</label>
                         <div id="attributes-list" class="flex flex-wrap gap-2"></div>
                     </div>
+
+                    <!-- Image Upload -->
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1.5">Imagen de ejemplo (opcional)</label>
+                        <div id="image-upload-area" class="border-2 border-dashed border-dark-600 rounded-xl p-4 text-center cursor-pointer hover:border-accent-cyan transition-colors" onclick="document.getElementById('image-input').click()">
+                            <div id="image-preview-container" class="hidden">
+                                <img id="image-preview" class="max-h-48 mx-auto rounded-lg object-contain" src="" alt="Preview">
+                                <button type="button" onclick="event.stopPropagation(); removeImage()" class="mt-2 text-xs text-red-400 hover:text-red-300">Eliminar imagen</button>
+                            </div>
+                            <div id="image-placeholder" class="py-2">
+                                <svg class="w-8 h-8 mx-auto text-gray-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                                <p class="text-sm text-gray-500">Toca para subir una imagen</p>
+                                <p class="text-xs text-gray-600 mt-1"> JPG, PNG o GIF</p>
+                            </div>
+                        </div>
+                        <input type="file" id="image-input" accept="image/*" class="hidden" onchange="handleImageSelect(event)">
+                    </div>
                 </div>
 
                 <!-- Submit Button -->
@@ -380,6 +399,9 @@
                 <div id="view-tags" class="flex flex-wrap gap-2 mb-4"></div>
                 <div class="bg-dark-800 rounded-xl p-4">
                     <pre id="view-content" class="text-sm font-mono text-gray-300 whitespace-pre-wrap break-words"></pre>
+                </div>
+                <div id="view-image-container" class="hidden mt-4 rounded-xl overflow-hidden border border-dark-600">
+                    <img id="view-image" src="" alt="Imagen de ejemplo" class="w-full max-h-80 object-contain">
                 </div>
             </div>
             <div class="p-4 border-t border-dark-700">
@@ -475,6 +497,7 @@
         let currentFilter = { category: 'all', subcategory: null, tag: null, search: '' };
         let currentViewPrompt = null;
         let extractedMetadata = null;
+        let currentImage = null; // Imagen actual en base64
 
         // Settings stay in localStorage (device-specific, never sent to server)
         const CONFIG = {
@@ -756,6 +779,44 @@ Remember: Return ONLY JSON, no other text.`;
             ).join('');
         }
 
+        // ─── Image Upload ───────────────────────────────────────────────────────────
+        function handleImageSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Validar tipo
+            if (!file.type.startsWith('image/')) {
+                showToast('Selecciona una imagen válida');
+                return;
+            }
+
+            // Validar tamaño (max 2MB)
+            if (file.size > 2 * 1024 * 1024) {
+                showToast('La imagen debe ser menor a 2MB');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentImage = e.target.result; // base64
+                document.getElementById('image-preview').src = currentImage;
+                document.getElementById('image-preview-container').classList.remove('hidden');
+                document.getElementById('image-placeholder').classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeImage() {
+            currentImage = null;
+            document.getElementById('image-input').value = '';
+            document.getElementById('image-preview-container').classList.add('hidden');
+            document.getElementById('image-placeholder').classList.remove('hidden');
+        }
+
+        function resetImageUpload() {
+            removeImage();
+        }
+
         // ─── Content helpers ──────────────────────────────────────────────────────────
         function detectTypeFromContent(content) {
             const lower = content.toLowerCase();
@@ -828,6 +889,7 @@ Remember: Return ONLY JSON, no other text.`;
                 confidence:  extractedMetadata?.confidence || 0.3,
                 attributes:  extractedMetadata?.attributes || {},
                 favorite:    existingPrompt?.favorite || false,
+                image:      currentImage || existingPrompt?.image || null,
                 created:     existingPrompt?.created || new Date().toISOString(),
                 updated:     new Date().toISOString(),
                 usage_count: existingPrompt?.usage_count || 0
@@ -878,6 +940,16 @@ Remember: Return ONLY JSON, no other text.`;
             ).join('');
 
             document.getElementById('view-content').textContent = prompt.content;
+
+            // Mostrar imagen si existe
+            const viewImageContainer = document.getElementById('view-image-container');
+            const viewImage = document.getElementById('view-image');
+            if (prompt.image && prompt.image.length > 0) {
+                viewImage.src = prompt.image;
+                viewImageContainer.classList.remove('hidden');
+            } else {
+                viewImageContainer.classList.add('hidden');
+            }
 
             const favBtn = document.getElementById('view-favorite-btn');
             if (prompt.favorite) {
@@ -938,6 +1010,16 @@ Remember: Return ONLY JSON, no other text.`;
 
             extractedMetadata = { confidence: p.confidence, attributes: p.attributes };
 
+            // Cargar imagen si existe
+            if (p.image) {
+                currentImage = p.image;
+                document.getElementById('image-preview').src = p.image;
+                document.getElementById('image-preview-container').classList.remove('hidden');
+                document.getElementById('image-placeholder').classList.add('hidden');
+            } else {
+                resetImageUpload();
+            }
+
             document.getElementById('ai-extract-section').classList.add('hidden');
             document.getElementById('metadata-section').classList.remove('hidden');
             document.getElementById('save-btn').disabled = false;
@@ -984,6 +1066,7 @@ Remember: Return ONLY JSON, no other text.`;
             document.getElementById('ai-extract-btn').disabled = true;
             document.getElementById('ai-extract-btn').classList.add('opacity-50', 'cursor-not-allowed');
             extractedMetadata = null;
+            resetImageUpload(); // Resetear imagen
             updateSubtypeOptions();
             document.getElementById('prompt-modal').classList.remove('hidden');
         }
@@ -991,6 +1074,7 @@ Remember: Return ONLY JSON, no other text.`;
         function closeModal() {
             document.getElementById('prompt-modal').classList.add('hidden');
             extractedMetadata = null;
+            resetImageUpload();
         }
 
         // ─── Filters ─────────────────────────────────────────────────────────────────
@@ -1068,6 +1152,7 @@ Remember: Return ONLY JSON, no other text.`;
             container.innerHTML = filtered.map(prompt => {
                 const cfg = CATEGORY_CONFIG[prompt.type] || CATEGORY_CONFIG.uncategorized;
                 const confidenceColor = prompt.confidence >= 0.7 ? 'text-accent-emerald' : prompt.confidence >= 0.4 ? 'text-accent-amber' : 'text-red-400';
+                const hasImage = prompt.image && prompt.image.length > 0;
                 return `
                     <div onclick="viewPrompt('${prompt.id}')" class="prompt-card bg-dark-800 rounded-2xl p-4 mb-3 border border-dark-700 cursor-pointer relative overflow-hidden">
                         <div class="absolute top-0 left-0 w-1 h-full ${prompt.confidence >= 0.7 ? 'bg-accent-emerald' : prompt.confidence >= 0.4 ? 'bg-accent-amber' : 'bg-red-500'}"></div>
@@ -1089,6 +1174,11 @@ Remember: Return ONLY JSON, no other text.`;
                                 <div class="flex flex-wrap gap-1.5 mt-3">
                                     ${prompt.tags.slice(0, 4).map(tag => `<span class="px-2 py-0.5 rounded-md bg-dark-700 text-gray-400 text-xs">#${escapeHtml(tag)}</span>`).join('')}
                                     ${prompt.tags.length > 4 ? `<span class="text-xs text-gray-500">+${prompt.tags.length - 4}</span>` : ''}
+                                </div>
+                            ` : ''}
+                            ${hasImage ? `
+                                <div class="mt-3 rounded-lg overflow-hidden border border-dark-600">
+                                    <img src="${prompt.image}" alt="Preview" class="w-full h-24 object-cover opacity-80">
                                 </div>
                             ` : ''}
                         </div>

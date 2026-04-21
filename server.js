@@ -13,6 +13,7 @@ const pool = new Pool({
 
 // Create table if it doesn't exist
 async function initDB() {
+  // Agregar columna image si no existe (para backward compatibility)
   await pool.query(`
     CREATE TABLE IF NOT EXISTS prompts (
       id          TEXT PRIMARY KEY,
@@ -25,6 +26,7 @@ async function initDB() {
       confidence  REAL    DEFAULT 0.5,
       attributes  JSONB   DEFAULT '{}',
       favorite    BOOLEAN DEFAULT FALSE,
+      image       TEXT    DEFAULT NULL,
       created     TIMESTAMPTZ DEFAULT NOW(),
       updated     TIMESTAMPTZ DEFAULT NOW(),
       usage_count INTEGER DEFAULT 0
@@ -60,8 +62,8 @@ app.post('/api/prompts/bulk', async (req, res) => {
     for (const p of prompts) {
       await pool.query(
         `INSERT INTO prompts
-           (id, title, description, content, type, subtype, tags, confidence, attributes, favorite, created, updated, usage_count)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+           (id, title, description, content, type, subtype, tags, confidence, attributes, favorite, image, created, updated, usage_count)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
          ON CONFLICT (id) DO NOTHING`,
         [
           p.id, p.title, p.description, p.content,
@@ -70,6 +72,7 @@ app.post('/api/prompts/bulk', async (req, res) => {
           p.confidence || 0.5,
           JSON.stringify(p.attributes || {}),
           p.favorite || false,
+          p.image || null,
           p.created || new Date().toISOString(),
           p.updated || new Date().toISOString(),
           p.usage_count || 0
@@ -86,18 +89,18 @@ app.post('/api/prompts/bulk', async (req, res) => {
 
 // POST create prompt (upsert — safe for auto-save flow)
 app.post('/api/prompts', async (req, res) => {
-  const { id, title, description, content, type, subtype, tags, confidence, attributes, favorite, created, updated, usage_count } = req.body;
+  const { id, title, description, content, type, subtype, tags, confidence, attributes, favorite, image, created, updated, usage_count } = req.body;
   if (!content) return res.status(400).json({ error: 'content is required' });
   try {
     const result = await pool.query(
       `INSERT INTO prompts
-         (id, title, description, content, type, subtype, tags, confidence, attributes, favorite, created, updated, usage_count)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+         (id, title, description, content, type, subtype, tags, confidence, attributes, favorite, image, created, updated, usage_count)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
        ON CONFLICT (id) DO UPDATE SET
          title=EXCLUDED.title, description=EXCLUDED.description, content=EXCLUDED.content,
          type=EXCLUDED.type, subtype=EXCLUDED.subtype, tags=EXCLUDED.tags,
          confidence=EXCLUDED.confidence, attributes=EXCLUDED.attributes,
-         favorite=EXCLUDED.favorite, updated=EXCLUDED.updated, usage_count=EXCLUDED.usage_count
+         favorite=EXCLUDED.favorite, image=EXCLUDED.image, updated=EXCLUDED.updated, usage_count=EXCLUDED.usage_count
        RETURNING *`,
       [
         id, title, description, content,
@@ -106,6 +109,7 @@ app.post('/api/prompts', async (req, res) => {
         confidence || 0.5,
         JSON.stringify(attributes || {}),
         favorite || false,
+        image || null,
         created || new Date().toISOString(),
         updated || new Date().toISOString(),
         usage_count || 0
@@ -121,19 +125,19 @@ app.post('/api/prompts', async (req, res) => {
 // PUT update prompt
 app.put('/api/prompts/:id', async (req, res) => {
   const { id } = req.params;
-  const { title, description, content, type, subtype, tags, confidence, attributes, favorite, updated, usage_count } = req.body;
+  const { title, description, content, type, subtype, tags, confidence, attributes, favorite, image, updated, usage_count } = req.body;
   try {
     const result = await pool.query(
       `UPDATE prompts
        SET title=$1, description=$2, content=$3, type=$4, subtype=$5,
-           tags=$6, confidence=$7, attributes=$8, favorite=$9, updated=$10, usage_count=$11
-       WHERE id=$12 RETURNING *`,
+           tags=$6, confidence=$7, attributes=$8, favorite=$9, image=$10, updated=$11, usage_count=$12
+       WHERE id=$13 RETURNING *`,
       [
         title, description, content,
         type || 'uncategorized', subtype || 'other',
         JSON.stringify(tags || []),
         confidence, JSON.stringify(attributes || {}),
-        favorite, updated || new Date().toISOString(),
+        favorite, image || null, updated || new Date().toISOString(),
         usage_count, id
       ]
     );
