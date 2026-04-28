@@ -33,6 +33,11 @@ async function initDB() {
     )
   `);
 
+  // Índice GIN para búsquedas atómicas en attributes->image
+  await pool.query(`
+    CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_prompts_attributes_image ON prompts USING GIN ((attributes -> 'image') jsonb_path_ops)
+  `);
+
   // Agregar columna image si no existe (para tablas existentes)
   await pool.query(`
     DO $$

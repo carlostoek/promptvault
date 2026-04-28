@@ -155,6 +155,40 @@
                     oninput="handleSearch(this.value)">
             </div>
 
+            <!-- Atomic Filters -->
+            <div class="grid grid-cols-2 gap-2 mb-4">
+                <select id="filter-angle" onchange="applyAtomicFilter('camera_angle', this.value)" class="bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-sm text-gray-300 focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan">
+                    <option value="">Ángulo</option>
+                    <option value="eye_level">Eye Level</option>
+                    <option value="low_angle">Low Angle</option>
+                    <option value="high_angle">High Angle</option>
+                    <option value="dutch_angle">Dutch Angle</option>
+                    <option value="birds_eye">Bird's Eye</option>
+                    <option value="worms_eye">Worm's Eye</option>
+                </select>
+                <select id="filter-timeofday" onchange="applyAtomicFilter('time_of_day', this.value)" class="bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-sm text-gray-300 focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan">
+                    <option value="">Hora del día</option>
+                    <option value="morning">Morning</option>
+                    <option value="afternoon">Afternoon</option>
+                    <option value="golden_hour">Golden Hour</option>
+                    <option value="sunset">Sunset</option>
+                    <option value="blue_hour">Blue Hour</option>
+                    <option value="night">Night</option>
+                </select>
+                <select id="filter-location" onchange="applyAtomicFilter('location', this.value)" class="bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-sm text-gray-300 focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan">
+                    <option value="">Ubicación</option>
+                    <option value="indoor">Indoor</option>
+                    <option value="outdoor">Outdoor</option>
+                    <option value="studio">Studio</option>
+                </select>
+                <select id="filter-lighting" onchange="applyAtomicFilter('lighting_source', this.value)" class="bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-sm text-gray-300 focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan">
+                    <option value="">Iluminación</option>
+                    <option value="natural_sun">Natural Sun</option>
+                    <option value="artificial">Artificial</option>
+                    <option value="mixed">Mixed</option>
+                </select>
+            </div>
+
             <!-- Category Pills -->
             <div class="flex gap-2 overflow-x-auto hide-scrollbar pb-2" id="category-filters">
                 <button onclick="filterByCategory('all')" class="category-pill px-4 py-2 rounded-full bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30 text-sm font-medium whitespace-nowrap active-filter" data-category="all">Todos</button>
@@ -681,7 +715,7 @@
     <script>
         // ─── State ───────────────────────────────────────────────────────────────────
         let prompts = [];
-        let currentFilter = { category: 'all', subcategory: null, tag: null, search: '' };
+        let currentFilter = { category: 'all', subcategory: null, tag: null, search: '', camera_angle: '', time_of_day: '', location: '', lighting_source: '' };
         let currentViewPrompt = null;
         let extractedMetadata = null;
         let currentImage = null; // Imagen actual en base64
@@ -1138,31 +1172,102 @@
             document.getElementById('ai-processing').classList.remove('hidden');
 
             try {
-                const systemPrompt = `You are a metadata extraction AI. Analyze this prompt and return ONLY valid JSON.
-NO markdown, NO explanations, NO code blocks. Just raw JSON.
+                const systemPrompt = `You are a precise metadata extractor specialized in image generation prompts. Your task is to analyze the given prompt and return a single JSON object with the structured metadata.
 
-Return this exact structure:
+IMPORTANT RULES:
+
+· Return ONLY valid JSON, no markdown, no code blocks, no extra text.
+· Use the exact structure below.
+· For each field, use ONLY the allowed values listed. If a value is not listed, use null or an empty array.
+· If the prompt does not provide enough information for a field, set it to null or empty array.
+· Tags: extract up to 8 relevant keywords in English or Spanish.
+· Confidence: a float from 0.0 to 1.0 reflecting how certain you are of the overall classification.
+
+JSON STRUCTURE TO RETURN:
 {
-  "title": "A short, descriptive title (3-6 words)",
-  "description": "A one-sentence description (10-20 words)",
-  "type": "image|video|code|uncategorized",
-  "subtype": "specific subtype or 'other'",
-  "confidence": 0.0-1.0,
-  "tags": ["tag1", "tag2", "tag3"],
-  "attributes": {}
+"title": "Short title (3-6 words)",
+"description": "One sentence (10-20 words) summarizing the prompt intent",
+"type": "image",
+"subtype": "portrait | landscape | macro | selfie | candid | studio | product | abstract | other",
+"confidence": 0.9,
+"tags": ["tag1", "tag2", "tag3"],
+"attributes": {
+"image": {
+"subject": {
+"main_subject": "person | animal | object | landscape | abstract | other",
+"people_count": 1,
+"gender": "female | male | non_binary | null",
+"age_group": "baby | child | teen | young_adult | adult | senior | null",
+"expression": "neutral | smiling | serious | sad | surprised | angry | null",
+"clothing_style": "casual | formal | sportswear | fantasy | traditional | null"
+},
+"pose": {
+"type": "standing | sitting | lying | dynamic_action | selfie | candid | posed | null",
+"selfie_details": {
+"is_selfie": true,
+"selfie_type": "facial | body_mirror | body_direct | hand_held | tripod | null",
+"mirror_view": "front | side | back | null",
+"facing_camera": true,
+"camera_visible": true
+},
+"body_orientation": "front | side | back | three_quarter | null",
+"action": "walking | running | dancing | jumping | posing | null"
+},
+"framing": {
+"shot_type": "extreme_close_up | close_up | medium | full_body | long_shot | establishing_shot",
+"composition": "center | rule_of_thirds | symmetrical | leading_lines | diagonal | frame_within_frame | null"
+},
+"camera": {
+"angle": "eye_level | low_angle | high_angle | dutch_angle | birds_eye | worms_eye",
+"lens_type": "wide_angle | standard | telephoto | macro | fisheye | tilt_shift",
+"depth_of_field": "shallow | deep | null",
+"focus_point": "eyes | face | foreground | center | null"
+},
+"lighting": {
+"source": "natural_sun | artificial | mixed | none",
+"natural_type": "direct_sunlight | golden_hour | blue_hour | overcast | moonlight | null",
+"artificial_type": "studio_soft | studio_hard | neon | led | flash | candle | firelight | null",
+"direction": "front | side | back | top | bottom | ambient",
+"intensity": "bright | moderate | dim | dark"
+},
+"environment": {
+"location": "indoor | outdoor | studio | underwater | space | virtual",
+"indoor_type": "room | apartment | bathroom | office | gym | null",
+"outdoor_type": "street | forest | beach | cityscape | rooftop | null",
+"weather": "sunny | cloudy | rainy | snowy | foggy | overcast | null"
+},
+"time": {
+"time_of_day": "morning | afternoon | golden_hour | sunset | blue_hour | night | null",
+"season": "spring | summer | autumn | winter | null"
+},
+"style": {
+"visual_style": "photorealistic | cinematic | illustration | anime | 3d_render | oil_painting | sketch | pixel_art | null",
+"color_palette": "warm | cool | monochrome | vibrant | pastel | neon | muted | sepia",
+"texture": "grainy | smooth | glossy | matte | ethereal | null"
+},
+"device": {
+"capture_device": "dslr | mirrorless | smartphone | film_camera | security_camera | drone | cctv | null",
+"smartphone_model": "iphone_13 | galaxy_s23 | null",
+"flash_used": true,
+"filter_applied": "vintage | grainy | nostalgic | polaroid | null"
+},
+"post_processing": {
+"hdr": true,
+"chromatic_aberration": false,
+"vignette": true,
+"film_grain": true
+},
+"mood": ["nostalgic", "dramatic", "peaceful", "cyberpunk", "minimalist", "romantic"]
+}
 }
 
-Guidelines:
-- For image prompts: detect photography style, lighting, camera settings, subject
-- For video prompts: detect video type, scene description, camera movement
-- For code prompts: detect programming language, function type, purpose
-- Tags should be relevant keywords in English or Spanish (max 8)
-- Confidence reflects how certain you are about the classification
+PROMPT TO ANALYZE:
+[PROMPT]
 
-Prompt to analyze:
-${content}
+`;
 
-Remember: Return ONLY JSON, no other text.`;
+                // Reemplazar marcador [PROMPT] por el contenido real
+                const promptWithContent = systemPrompt.replace('[PROMPT]', content);
 
                 const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                     method: 'POST',
@@ -1175,8 +1280,8 @@ Remember: Return ONLY JSON, no other text.`;
                     body: JSON.stringify({
                         model: CONFIG.model,
                         messages: [
-                            { role: 'system', content: systemPrompt },
-                            { role: 'user', content: content }
+                            { role: 'system', content: promptWithContent },
+                            { role: 'user', content: '' }
                         ],
                         temperature: 0.3,
                         max_tokens: 500
@@ -1726,11 +1831,22 @@ Remember: Return ONLY JSON, no other text.`;
             renderPrompts();
         }
 
+        function applyAtomicFilter(field, value) {
+            currentFilter[field] = value;
+            renderActiveFilters();
+            renderPrompts();
+        }
+
         function renderActiveFilters() {
             const container = document.getElementById('active-filters');
             const filters = [];
             if (currentFilter.subcategory) filters.push({ type: 'subcategory', label: currentFilter.subcategory });
             if (currentFilter.tag)         filters.push({ type: 'tag', label: `#${currentFilter.tag}` });
+            // Atomic filters
+            if (currentFilter.camera_angle)   filters.push({ type: 'camera_angle', label: `Ángulo: ${currentFilter.camera_angle}` });
+            if (currentFilter.time_of_day) filters.push({ type: 'time_of_day', label: `Hora: ${currentFilter.time_of_day}` });
+            if (currentFilter.location)  filters.push({ type: 'location', label: `Lugar: ${currentFilter.location}` });
+            if (currentFilter.lighting_source) filters.push({ type: 'lighting_source', label: `Luz: ${currentFilter.lighting_source}` });
             if (!filters.length) { container.classList.add('hidden'); return; }
             container.classList.remove('hidden');
             container.innerHTML = filters.map(f => `
@@ -1744,6 +1860,15 @@ Remember: Return ONLY JSON, no other text.`;
         function clearFilter(type) {
             if (type === 'subcategory') currentFilter.subcategory = null;
             if (type === 'tag')         currentFilter.tag = null;
+            if (type === 'camera_angle')   currentFilter.camera_angle = '';
+            if (type === 'time_of_day')   currentFilter.time_of_day = '';
+            if (type === 'location')    currentFilter.location = '';
+            if (type === 'lighting_source') currentFilter.lighting_source = '';
+            // Reset selects
+            document.getElementById('filter-angle').value = '';
+            document.getElementById('filter-timeofday').value = '';
+            document.getElementById('filter-location').value = '';
+            document.getElementById('filter-lighting').value = '';
             renderActiveFilters();
             renderPrompts();
         }
@@ -1758,6 +1883,23 @@ Remember: Return ONLY JSON, no other text.`;
                 if (currentFilter.category !== 'all' && currentFilter.category !== 'favorites' && p.type !== currentFilter.category) return false;
                 if (currentFilter.subcategory && p.subtype !== currentFilter.subcategory) return false;
                 if (currentFilter.tag && !(p.tags || []).includes(currentFilter.tag)) return false;
+                // Atomic filters on attributes JSONB
+                if (currentFilter.camera_angle) {
+                    const attr = p.attributes?.image?.camera?.angle;
+                    if (attr !== currentFilter.camera_angle) return false;
+                }
+                if (currentFilter.time_of_day) {
+                    const attr = p.attributes?.image?.time?.time_of_day;
+                    if (attr !== currentFilter.time_of_day) return false;
+                }
+                if (currentFilter.location) {
+                    const attr = p.attributes?.image?.environment?.location;
+                    if (attr !== currentFilter.location) return false;
+                }
+                if (currentFilter.lighting_source) {
+                    const attr = p.attributes?.image?.lighting?.source;
+                    if (attr !== currentFilter.lighting_source) return false;
+                }
                 if (currentFilter.search) {
                     const s = currentFilter.search.toLowerCase();
                     return p.title.toLowerCase().includes(s) ||
