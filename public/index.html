@@ -201,11 +201,34 @@
     </div>
 
     <!-- Floating Action Button -->
-    <button onclick="openAddModal()" class="fixed right-4 bottom-24 w-14 h-14 rounded-full bg-gradient-to-r from-accent-cyan to-accent-purple shadow-lg shadow-accent-cyan/25 flex items-center justify-center transform transition-transform active:scale-90 z-40">
+    <button id="main-fab" class="fixed right-4 bottom-24 w-14 h-14 rounded-full bg-gradient-to-r from-accent-cyan to-accent-purple shadow-lg shadow-accent-cyan/25 flex items-center justify-center transform transition-transform active:scale-90 z-40">
         <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
         </svg>
     </button>
+    <script>
+        // FAB long-press to open workflows
+        const fab = document.getElementById('main-fab');
+        let fabTimeout;
+        fab.addEventListener('touchstart', e => {
+            fabTimeout = setTimeout(() => {
+                showWorkflowsModal();
+                e.preventDefault();
+            }, 500);
+        });
+        fab.addEventListener('touchend', () => clearTimeout(fabTimeout));
+        fab.addEventListener('touchcancel', () => clearTimeout(fabTimeout));
+        fab.addEventListener('mousedown', () => {
+            fabTimeout = setTimeout(() => showWorkflowsModal(), 500);
+        });
+        fab.addEventListener('mouseup', () => clearTimeout(fabTimeout));
+        fab.addEventListener('mouseleave', () => clearTimeout(fabTimeout));
+        fab.addEventListener('click', e => {
+            // Short click opens add modal
+            clearTimeout(fabTimeout);
+            openAddModal();
+        });
+    </script>
 
     <!-- Bottom Navigation -->
     <nav class="fixed bottom-0 left-0 right-0 glass border-t border-dark-700 z-40">
@@ -424,6 +447,12 @@
                     <span id="view-confidence" class="px-2 py-1 rounded-lg text-xs"></span>
                 </div>
                 <div id="view-tags" class="flex flex-wrap gap-2 mb-4"></div>
+                <div id="view-workflows-badge" onclick="showPromptWorkflows(currentViewPrompt.id)" class="hidden flex items-center gap-2 px-3 py-2 rounded-xl bg-accent-cyan/10 border border-accent-cyan/30 text-accent-cyan text-xs font-medium cursor-pointer hover:bg-accent-cyan/20 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    <span id="view-workflows-count">0 flujos</span>
+                </div>
                 <div class="bg-dark-800 rounded-xl p-4">
                     <pre id="view-content" class="text-sm font-mono text-gray-300 whitespace-pre-wrap break-words"></pre>
                 </div>
@@ -518,6 +547,137 @@
         <span id="toast-message" class="text-sm font-medium"></span>
     </div>
 
+    <!-- Workflows List Modal -->
+    <div id="workflows-modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeWorkflowsModal()"></div>
+        <div class="absolute bottom-0 left-0 right-0 bg-dark-900 rounded-t-3xl max-h-[92vh] overflow-y-auto animate-slide-up">
+            <div class="sticky top-0 bg-dark-900 border-b border-dark-700 px-4 py-4 rounded-t-3xl z-10">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <svg class="w-6 h-6 text-accent-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                        <h2 class="text-lg font-bold">Mis Flujos</h2>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="openWorkflowCreateModal()" class="p-2 rounded-xl bg-accent-cyan/20 text-accent-cyan">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                        </button>
+                        <button onclick="closeWorkflowsModal()" class="p-2 rounded-full bg-dark-800 text-gray-400">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div id="workflows-list" class="p-4 space-y-3">
+                <!-- Workflow cards rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Create/Edit Workflow Modal -->
+    <div id="workflow-create-modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeWorkflowCreateModal()"></div>
+        <div class="absolute bottom-0 left-0 right-0 bg-dark-900 rounded-t-3xl max-h-[92vh] overflow-y-auto animate-slide-up">
+            <div class="sticky top-0 bg-dark-900 border-b border-dark-700 px-4 py-4 rounded-t-3xl z-10">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-bold" id="workflow-create-title">Nuevo Flujo</h2>
+                    <button onclick="closeWorkflowCreateModal()" class="p-2 rounded-full bg-dark-800 text-gray-400">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <form id="workflow-form" class="p-4 space-y-4" onsubmit="saveWorkflow(event)">
+                <input type="hidden" id="workflow-id">
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-2 uppercase tracking-wider">Nombre del flujo</label>
+                    <input type="text" id="workflow-name" required placeholder="Ej: Pipeline de Generación"
+                        class="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-3 text-sm placeholder-gray-600 focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-2 uppercase tracking-wider">Descripción (opcional)</label>
+                    <textarea id="workflow-description" rows="2" placeholder="Describe para qué sirve este flujo..."
+                        class="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-3 text-sm placeholder-gray-600 focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan transition-all resize-none"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-2 uppercase tracking-wider">Selecciona los prompts</label>
+                    <div id="workflow-prompt-selector" class="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-3 bg-dark-800 rounded-xl border border-dark-700">
+                        <!-- Prompt chips rendered here -->
+                    </div>
+                </div>
+                <div id="workflow-preview" class="hidden">
+                    <label class="block text-xs font-medium text-gray-400 mb-2 uppercase tracking-wider">Vista previa</label>
+                    <div id="workflow-preview-chain" class="flex items-center gap-2 p-3 bg-dark-800 rounded-xl border border-dark-700 overflow-x-auto hide-scrollbar">
+                        <!-- Chain preview rendered here -->
+                    </div>
+                </div>
+                <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-accent-cyan to-accent-purple text-white font-semibold">
+                    Guardar Flujo
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Workflow Detail Modal -->
+    <div id="workflow-detail-modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeWorkflowDetailModal()"></div>
+        <div class="absolute bottom-0 left-0 right-0 bg-dark-900 rounded-t-3xl max-h-[92vh] overflow-y-auto animate-slide-up">
+            <div class="sticky top-0 bg-dark-900 border-b border-dark-700 px-4 py-4 rounded-t-3xl z-10">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <button onclick="closeWorkflowDetailModal()" class="p-2 rounded-full bg-dark-800 text-gray-400">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                            </svg>
+                        </button>
+                        <h2 class="text-lg font-bold" id="workflow-detail-title">Flujo</h2>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="deleteCurrentWorkflow()" class="p-2 rounded-xl bg-red-500/20 text-red-400">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div id="workflow-detail-content" class="p-4">
+                <!-- Chain visualization rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Prompt Workflows Modal (badge detail) -->
+    <div id="prompt-workflows-modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closePromptWorkflowsModal()"></div>
+        <div class="absolute bottom-0 left-0 right-0 bg-dark-900 rounded-t-3xl max-h-[70vh] overflow-y-auto animate-slide-up">
+            <div class="sticky top-0 bg-dark-900 border-b border-dark-700 px-4 py-4 rounded-t-3xl z-10">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <svg class="w-5 h-5 text-accent-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                        <h2 class="text-lg font-bold">Flujos con este prompt</h2>
+                    </div>
+                    <button onclick="closePromptWorkflowsModal()" class="p-2 rounded-full bg-dark-800 text-gray-400">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div id="prompt-workflows-list" class="p-4 space-y-2">
+                <!-- Workflow items rendered here -->
+            </div>
+        </div>
+    </div>
+
     <script>
         // ─── State ───────────────────────────────────────────────────────────────────
         let prompts = [];
@@ -532,6 +692,9 @@
         let scrollObserver = null;
         let currentPromptIndex = -1;
         let currentFilteredPrompts = [];
+        let workflows = [];
+        let currentWorkflow = null;
+        let workflowNavContext = null;
 
         // Settings stay in localStorage (device-specific, never sent to server)
         const CONFIG = {
@@ -672,6 +835,288 @@
 
         function showSettingsModal() { document.getElementById('settings-modal').classList.remove('hidden'); }
         function closeSettingsModal() { document.getElementById('settings-modal').classList.add('hidden'); }
+
+        // ─── Workflows ─────────────────────────────────────────────────────────────────
+
+        function closeWorkflowsModal() { document.getElementById('workflows-modal').classList.add('hidden'); }
+        function closeWorkflowCreateModal() { document.getElementById('workflow-create-modal').classList.add('hidden'); }
+        function closeWorkflowDetailModal() { document.getElementById('workflow-detail-modal').classList.add('hidden'); }
+        function closePromptWorkflowsModal() { document.getElementById('prompt-workflows-modal').classList.add('hidden'); }
+
+        function showWorkflowsModal() {
+            document.getElementById('workflows-modal').classList.remove('hidden');
+            loadWorkflows();
+        }
+
+        async function loadWorkflows() {
+            try {
+                const res = await fetch('/api/workflows');
+                workflows = await res.json();
+                renderWorkflowsList();
+            } catch (err) {
+                console.error(err);
+                showToast('Error cargando flujos');
+            }
+        }
+
+        function renderWorkflowsList() {
+            const container = document.getElementById('workflows-list');
+            if (workflows.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-gray-500">
+                        <svg class="w-12 h-12 mx-auto mb-3 text-dark-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                        <p class="font-medium">No hay flujos todavía</p>
+                        <p class="text-sm mt-1">Crea tu primer flujo para encadenar prompts</p>
+                    </div>`;
+                return;
+            }
+            container.innerHTML = workflows.map(wf => `
+                <div onclick="viewWorkflow('${wf.id}')" class="p-4 bg-dark-800 rounded-xl border border-dark-700 cursor-pointer hover:border-accent-cyan/50 transition-colors active:scale-[0.98]">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="font-semibold text-white">${wf.name}</h3>
+                        <span class="text-xs px-2 py-1 rounded-full bg-accent-cyan/20 text-accent-cyan">${wf.node_count} nodos</span>
+                    </div>
+                    ${wf.description ? `<p class="text-xs text-gray-400 mb-3 line-clamp-2">${wf.description}</p>` : ''}
+                    <div class="flex items-center gap-1">
+                        ${[...Array(Math.min(wf.node_count, 5))].map((_, i) => `
+                            <div class="w-6 h-6 rounded-full bg-dark-700 border border-dark-600 flex items-center justify-center">
+                                <div class="w-2 h-2 rounded-full bg-accent-cyan/60"></div>
+                            </div>
+                        `).join('')}
+                        ${wf.node_count > 5 ? `<span class="text-xs text-gray-500 ml-1">+${wf.node_count - 5}</span>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openWorkflowCreateModal(editWorkflow = null) {
+            document.getElementById('workflow-create-modal').classList.remove('hidden');
+            document.getElementById('workflow-id').value = editWorkflow ? editWorkflow.id : '';
+            document.getElementById('workflow-name').value = editWorkflow ? editWorkflow.name : '';
+            document.getElementById('workflow-description').value = editWorkflow ? (editWorkflow.description || '') : '';
+            document.getElementById('workflow-create-title').textContent = editWorkflow ? 'Editar Flujo' : 'Nuevo Flujo';
+            renderWorkflowPromptSelector(editWorkflow ? editWorkflow.nodes || [] : []);
+            updateWorkflowPreview();
+        }
+
+        function renderWorkflowPromptSelector(selectedNodes = []) {
+            const container = document.getElementById('workflow-prompt-selector');
+            const selectedIds = selectedNodes.map(n => n.id);
+            container.innerHTML = prompts.map(p => {
+                const isSelected = selectedIds.includes(p.id);
+                const cfg = CATEGORY_CONFIG[p.type] || CATEGORY_CONFIG.uncategorized;
+                return `
+                    <button type="button" onclick="toggleWorkflowPrompt('${p.id}')"
+                        class="prompt-chip px-3 py-2 rounded-xl text-xs font-medium transition-all ${isSelected ? 'bg-accent-cyan/20 border-accent-cyan text-accent-cyan' : 'bg-dark-700 border-dark-600 text-gray-300'} border"
+                        data-prompt-id="${p.id}">
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full" style="background:${cfg.color}"></span>
+                            ${p.title || p.content.substring(0, 20)}
+                        </span>
+                    </button>
+                `;
+            }).join('');
+            // Store selected IDs for later use
+            window._workflowSelectedIds = selectedIds;
+        }
+
+        function toggleWorkflowPrompt(promptId) {
+            const ids = window._workflowSelectedIds || [];
+            const idx = ids.indexOf(promptId);
+            if (idx >= 0) {
+                ids.splice(idx, 1);
+            } else {
+                ids.push(promptId);
+            }
+            window._workflowSelectedIds = ids;
+            // Update chip styles
+            document.querySelectorAll('.prompt-chip').forEach(chip => {
+                const id = chip.dataset.promptId;
+                const isSelected = ids.includes(id);
+                if (isSelected) {
+                    chip.classList.add('bg-accent-cyan/20', 'border-accent-cyan', 'text-accent-cyan');
+                    chip.classList.remove('bg-dark-700', 'border-dark-600', 'text-gray-300');
+                } else {
+                    chip.classList.remove('bg-accent-cyan/20', 'border-accent-cyan', 'text-accent-cyan');
+                    chip.classList.add('bg-dark-700', 'border-dark-600', 'text-gray-300');
+                }
+            });
+            updateWorkflowPreview();
+        }
+
+        function updateWorkflowPreview() {
+            const preview = document.getElementById('workflow-preview');
+            const chain = document.getElementById('workflow-preview-chain');
+            const ids = window._workflowSelectedIds || [];
+            if (ids.length === 0) {
+                preview.classList.add('hidden');
+                return;
+            }
+            preview.classList.remove('hidden');
+            chain.innerHTML = ids.map((id, i) => {
+                const prompt = prompts.find(p => p.id === id);
+                if (!prompt) return '';
+                const cfg = CATEGORY_CONFIG[prompt.type] || CATEGORY_CONFIG.uncategorized;
+                return `
+                    <div class="flex items-center gap-1">
+                        <div class="flex-shrink-0 px-3 py-2 rounded-xl bg-dark-700 border border-dark-600 text-xs">
+                            <span class="w-2 h-2 rounded-full inline-block mr-1" style="background:${cfg.color}"></span>
+                            <span class="text-gray-200">${prompt.title || prompt.content.substring(0, 15)}...</span>
+                        </div>
+                        ${i < ids.length - 1 ? '<svg class="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>' : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function saveWorkflow(e) {
+            e.preventDefault();
+            const id = document.getElementById('workflow-id').value;
+            const name = document.getElementById('workflow-name').value.trim();
+            const description = document.getElementById('workflow-description').value.trim();
+            const promptIds = window._workflowSelectedIds || [];
+
+            if (!name) { showToast('El nombre es requerido'); return; }
+
+            try {
+                if (id) {
+                    // Update existing workflow
+                    await fetch(`/api/workflows/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, description })
+                    });
+                    // Update nodes
+                    await fetch(`/api/workflows/${id}/nodes`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'reorder', orderedIds: promptIds })
+                    });
+                } else {
+                    await fetch('/api/workflows', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, description, promptIds })
+                    });
+                }
+                closeWorkflowCreateModal();
+                showToast(id ? 'Flujo actualizado' : 'Flujo creado');
+                loadWorkflows();
+            } catch (err) {
+                console.error(err);
+                showToast('Error guardando flujo');
+            }
+        }
+
+        async function viewWorkflow(workflowId) {
+            try {
+                const res = await fetch(`/api/workflows/${workflowId}`);
+                currentWorkflow = await res.json();
+                workflowNavContext = { fromWorkflow: workflowId };
+                document.getElementById('workflow-detail-title').textContent = currentWorkflow.name;
+                renderWorkflowChain();
+                document.getElementById('workflows-modal').classList.add('hidden');
+                document.getElementById('workflow-detail-modal').classList.remove('hidden');
+            } catch (err) {
+                console.error(err);
+                showToast('Error cargando flujo');
+            }
+        }
+
+        function renderWorkflowChain() {
+            const container = document.getElementById('workflow-detail-content');
+            const nodes = currentWorkflow.nodes || [];
+            if (nodes.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-gray-500">
+                        <p class="font-medium">Este flujo aún no tiene nodos</p>
+                        <p class="text-sm mt-1">Edita el flujo para agregar prompts</p>
+                    </div>`;
+                return;
+            }
+            container.innerHTML = `
+                <div class="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-2">
+                    ${nodes.map((node, i) => {
+                        const cfg = CATEGORY_CONFIG[node.type] || CATEGORY_CONFIG.uncategorized;
+                        return `
+                            <div class="flex items-center gap-1 flex-shrink-0">
+                                <div onclick="openPromptFromWorkflow('${node.id}')"
+                                    class="prompt-chain-node flex flex-col items-center p-3 rounded-xl bg-dark-800 border border-dark-600 hover:border-accent-cyan/50 cursor-pointer transition-colors active:scale-95"
+                                    style="min-width:100px">
+                                    <div class="w-8 h-8 rounded-full flex items-center justify-center mb-2" style="background:${cfg.color}20; border: 1px solid ${cfg.color}40">
+                                        <span class="text-xs font-bold" style="color:${cfg.color}">${i + 1}</span>
+                                    </div>
+                                    <span class="text-xs font-medium text-white text-center max-w-[100px] truncate">${node.title || node.content.substring(0, 12)}...</span>
+                                    <span class="text-[10px] text-gray-500 mt-1">${cfg.label}</span>
+                                </div>
+                                ${i < nodes.length - 1 ? '<svg class="w-5 h-5 text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>' : ''}
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                <div class="mt-4 pt-4 border-t border-dark-700">
+                    <button onclick="openWorkflowCreateModal(currentWorkflow)" class="w-full py-3 rounded-xl bg-dark-700 text-gray-200 font-medium hover:bg-dark-600 transition-colors">
+                        Editar Flujo
+                    </button>
+                </div>
+            `;
+        }
+
+        function openPromptFromWorkflow(promptId) {
+            const prompt = prompts.find(p => p.id === promptId) || currentWorkflow.nodes.find(n => n.id === promptId);
+            if (prompt) {
+                closeWorkflowDetailModal();
+                viewPrompt(prompt);
+            }
+        }
+
+        async function deleteCurrentWorkflow() {
+            if (!currentWorkflow) return;
+            if (!confirm('¿Eliminar este flujo?')) return;
+            try {
+                await fetch(`/api/workflows/${currentWorkflow.id}`, { method: 'DELETE' });
+                closeWorkflowDetailModal();
+                showToast('Flujo eliminado');
+                loadWorkflows();
+            } catch (err) {
+                console.error(err);
+                showToast('Error eliminando flujo');
+            }
+        }
+
+        async function showPromptWorkflows(promptId) {
+            try {
+                const res = await fetch(`/api/workflows/prompt/${promptId}`);
+                const wfs = await res.json();
+                const container = document.getElementById('prompt-workflows-list');
+                if (wfs.length === 0) {
+                    container.innerHTML = `<p class="text-center text-gray-500 py-8">Este prompt no pertenece a ningún flujo</p>`;
+                } else {
+                    container.innerHTML = wfs.map(wf => `
+                        <div onclick="viewWorkflowFromPromptWorkflows('${wf.id}')"
+                            class="p-3 bg-dark-800 rounded-xl border border-dark-700 cursor-pointer hover:border-accent-cyan/50 transition-colors">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-4 h-4 text-accent-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                </svg>
+                                <span class="font-medium text-white">${wf.name}</span>
+                                <span class="text-xs text-gray-500 ml-auto">posición ${wf.position + 1}</span>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+                document.getElementById('prompt-workflows-modal').classList.remove('hidden');
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function viewWorkflowFromPromptWorkflows(workflowId) {
+            closePromptWorkflowsModal();
+            viewWorkflow(workflowId);
+        }
 
         function saveSettings() {
             CONFIG.apiKey = document.getElementById('api-key-input').value.trim();
@@ -1071,6 +1516,20 @@ Remember: Return ONLY JSON, no other text.`;
                 favBtn.classList.replace('text-red-500', 'text-gray-400');
                 favBtn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>`;
             }
+
+            // Load workflows badge
+            fetch(`/api/workflows/prompt/${prompt.id}`)
+                .then(r => r.json())
+                .then(wfs => {
+                    const badge = document.getElementById('view-workflows-badge');
+                    if (wfs.length > 0) {
+                        document.getElementById('view-workflows-count').textContent = `${wfs.length} flujo${wfs.length > 1 ? 's' : ''}`;
+                        badge.classList.remove('hidden');
+                    } else {
+                        badge.classList.add('hidden');
+                    }
+                })
+                .catch(() => badge.classList.add('hidden'));
 
             document.getElementById('view-modal').classList.remove('hidden');
             updatePromptDots();
@@ -1582,6 +2041,10 @@ Remember: Return ONLY JSON, no other text.`;
                 closeExportModal();
                 closeImportModal();
                 closeSettingsModal();
+                closeWorkflowsModal();
+                closeWorkflowCreateModal();
+                closeWorkflowDetailModal();
+                closePromptWorkflowsModal();
             }
         });
     </script>

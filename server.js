@@ -43,6 +43,32 @@ async function initDB() {
     END $$
   `);
 
+  // Crear tabla workflows si no existe
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS workflows (
+      id          TEXT PRIMARY KEY,
+      name        TEXT NOT NULL,
+      description TEXT,
+      created     TIMESTAMPTZ DEFAULT NOW(),
+      updated     TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  // Crear tabla workflow_nodes si no existe
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS workflow_nodes (
+      workflow_id TEXT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+      prompt_id   TEXT NOT NULL REFERENCES prompts(id) ON DELETE CASCADE,
+      position    INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (workflow_id, prompt_id)
+    )
+  `);
+
+  // Crear índice para lookup rápido de prompts → workflows
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_workflow_nodes_prompt_id ON workflow_nodes(prompt_id)
+  `);
+
   console.log('✅ DB ready');
 }
 
@@ -213,6 +239,160 @@ app.delete('/api/prompts/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM prompts WHERE id=$1', [id]);
     res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── WORKFLOW ROUTES ─────────────────────────────────────────────────────────
+
+// GET all workflows (with node count)
+app.get('/api/workflows', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT w.*, COUNT(wn.prompt_id) as node_count
+      FROM workflows w
+      LEFT JOIN workflow_nodes wn ON w.id = wn.workflow_id
+      GROUP BY w.id
+      ORDER BY w.created DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST create workflow
+app.post('/api/workflows', async (req, res) => {
+  const { name, description, promptIds } = req.body;
+  if (!name) return res.status(400).json({ error: 'name is required' });
+  const id = `wf_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  try {
+    await pool.query(
+      'INSERT INTO workflows (id, name, description) VALUES ($1, $2, $3)',
+      [id, name, description || null]
+    );
+    if (Array.isArray(promptIds)) {
+      for (let i = 0; i < promptIds.length; i++) {
+        await pool.query(
+          'INSERT INTO workflow_nodes (workflow_id, prompt_id, position) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+          [id, promptIds[i], i]
+        );
+      }
+    }
+    const result = await pool.query('SELECT * FROM workflows WHERE id=$1', [id]);
+    const countResult = await pool.query('SELECT COUNT(*) FROM workflow_nodes WHERE workflow_id=$1', [id]);
+    res.json({ ...result.rows[0], node_count: parseInt(countResult.rows[0].count) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET single workflow with ordered nodes
+app.get('/api/workflows/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const wfResult = await pool.query('SELECT * FROM workflows WHERE id=$1', [id]);
+    if (wfResult.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    const nodesResult = await pool.query(`
+      SELECT p.*, wn.position
+      FROM workflow_nodes wn
+      JOIN prompts p ON wn.prompt_id = p.id
+      WHERE wn.workflow_id = $1
+      ORDER BY wn.position ASC
+    `, [id]);
+    res.json({ ...wfResult.rows[0], nodes: nodesResult.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT update workflow name/description
+app.put('/api/workflows/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, description } = req.body;
+  try {
+    const result = await pool.query(
+      'UPDATE workflows SET name=$1, description=$2, updated=NOW() WHERE id=$3 RETURNING *',
+      [name, description || null, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE workflow
+app.delete('/api/workflows/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('DELETE FROM workflows WHERE id=$1', [id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH reorder/add/remove workflow nodes
+app.patch('/api/workflows/:id/nodes', async (req, res) => {
+  const { id } = req.params;
+  const { action, promptIds, orderedIds } = req.body;
+  try {
+    if (action === 'add' && Array.isArray(promptIds)) {
+      const maxPos = await pool.query('SELECT COALESCE(MAX(position), -1) as m FROM workflow_nodes WHERE workflow_id=$1', [id]);
+      let pos = maxPos.rows[0].m + 1;
+      for (const pid of promptIds) {
+        await pool.query(
+          'INSERT INTO workflow_nodes (workflow_id, prompt_id, position) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+          [id, pid, pos++]
+        );
+      }
+    } else if (action === 'remove' && Array.isArray(promptIds)) {
+      await pool.query('DELETE FROM workflow_nodes WHERE workflow_id=$1 AND prompt_id = ANY($2)', [id, promptIds]);
+    } else if (action === 'reorder' && Array.isArray(orderedIds)) {
+      await pool.query('DELETE FROM workflow_nodes WHERE workflow_id=$1', [id]);
+      for (let i = 0; i < orderedIds.length; i++) {
+        await pool.query(
+          'INSERT INTO workflow_nodes (workflow_id, prompt_id, position) VALUES ($1, $2, $3)',
+          [id, orderedIds[i], i]
+        );
+      }
+    }
+    const wfResult = await pool.query('SELECT * FROM workflows WHERE id=$1', [id]);
+    if (wfResult.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    const nodesResult = await pool.query(`
+      SELECT p.*, wn.position
+      FROM workflow_nodes wn
+      JOIN prompts p ON wn.prompt_id = p.id
+      WHERE wn.workflow_id = $1
+      ORDER BY wn.position ASC
+    `, [id]);
+    res.json({ ...wfResult.rows[0], nodes: nodesResult.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET workflows containing a specific prompt
+app.get('/api/workflows/prompt/:promptId', async (req, res) => {
+  const { promptId } = req.params;
+  try {
+    const result = await pool.query(`
+      SELECT w.*, wn.position
+      FROM workflows w
+      JOIN workflow_nodes wn ON w.id = wn.workflow_id
+      WHERE wn.prompt_id = $1
+      ORDER BY wn.position ASC
+    `, [promptId]);
+    res.json(result.rows);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
