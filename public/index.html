@@ -1068,7 +1068,7 @@
             const prompt = prompts.find(p => p.id === promptId) || currentWorkflow.nodes.find(n => n.id === promptId);
             if (prompt) {
                 closeWorkflowDetailModal();
-                viewPrompt(prompt);
+                viewPrompt(prompt.id);
             }
         }
 
