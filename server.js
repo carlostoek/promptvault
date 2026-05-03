@@ -111,6 +111,104 @@ app.get('/api/prompts', async (req, res) => {
   }
 });
 
+// GET suggest - intelligent search with weighted scoring
+app.get('/api/prompts/suggest', async (req, res) => {
+  const { q, limit = 6 } = req.query;
+  if (!q || q.trim().length < 2) {
+    return res.json({ suggestions: [] });
+  }
+
+  const query = q.trim().toLowerCase();
+  const intentionMap = {
+    'crear': 'create', 'generar': 'create', 'nuevo': 'create', 'new': 'create',
+    'modificar': 'modify', 'cambiar': 'modify', 'añadir': 'modify', 'add': 'modify',
+    'mejorar': 'improve', 'enhance': 'improve', 'refinar': 'improve',
+    'estilo': 'restyle', 'aesthetic': 'restyle', 'vintage': 'restyle', 'cyberpunk': 'restyle',
+    'vieja': 'restore', 'aging': 'restore', 'deteriorar': 'restore', 'old': 'restore',
+    'adaptar': 'adapt', 'convertir': 'adapt', 'formato': 'adapt', 'resize': 'adapt'
+  };
+
+  let targetIntention = null;
+  for (const [keyword, intention] of Object.entries(intentionMap)) {
+    if (query.includes(keyword)) {
+      targetIntention = intention;
+      break;
+    }
+  }
+
+  try {
+    let results = await pool.query(`
+      SELECT id, title, description, content, type, subtype, tags, attributes, confidence, favorite
+      FROM prompts
+      WHERE ($1 = 'uncategorized' OR type != 'uncategorized')
+      ORDER BY usage_count DESC, created DESC
+      LIMIT 100
+    `, [query]);
+
+    const scored = results.rows.map(prompt => {
+      let score = 0;
+      let reason = 'text_match';
+
+      // Title/description match (weight 1)
+      const titleMatch = (prompt.title || '').toLowerCase().includes(query);
+      const descMatch = (prompt.description || '').toLowerCase().includes(query);
+      if (titleMatch) score += 2;
+      if (descMatch) score += 1;
+
+      // Content match (weight 0.5)
+      if ((prompt.content || '').toLowerCase().includes(query)) {
+        score += 0.5;
+      }
+
+      // Tags match (weight 2)
+      const tags = prompt.tags || [];
+      const tagMatches = tags.filter(t => query.includes(t.toLowerCase())).length;
+      score += tagMatches * 2;
+
+      // Type/subtype match (weight 2)
+      if ((prompt.type || '').toLowerCase().includes(query)) score += 2;
+      if ((prompt.subtype || '').toLowerCase().includes(query)) score += 1;
+
+      // Intention match (weight 3) - boosted if keyword detected
+      const promptIntention = prompt.attributes?.image?.intention;
+      if (targetIntention && promptIntention === targetIntention) {
+        score += 6; // Double weight when explicit intention keyword in query
+        reason = 'intention_match';
+      } else if (promptIntention && query.includes(promptIntention)) {
+        score += 3;
+        reason = 'intention_hint';
+      }
+
+      // Favorite boost
+      if (prompt.favorite) score += 0.5;
+
+      return { ...prompt, _score: score, _reason: reason };
+    });
+
+    results = scored
+      .filter(r => r._score > 0)
+      .sort((a, b) => b._score - a._score)
+      .slice(0, parseInt(limit));
+
+    const suggestions = results.map(r => ({
+      id: r.id,
+      title: r.title || r.content.substring(0, 40) + '...',
+      description: r.description || '',
+      type: r.type,
+      subtype: r.subtype,
+      intention: r.attributes?.image?.intention || null,
+      score: r._score,
+      reason: r._reason,
+      favorite: r.favorite
+    }));
+
+    res.json({ suggestions });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST bulk import — must be BEFORE /:id routes
 app.post('/api/prompts/bulk', async (req, res) => {
   const { prompts, merge } = req.body;
