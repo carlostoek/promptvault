@@ -2198,7 +2198,7 @@ PROMPT TO ANALYZE:
                 const confidenceColor = prompt.confidence >= 0.7 ? 'text-accent-emerald' : prompt.confidence >= 0.4 ? 'text-accent-amber' : 'text-red-400';
                 const hasImage = prompt.image && prompt.image.length > 0;
                 return `
-                    <div onclick="viewPrompt('${prompt.id}')" class="prompt-card bg-dark-800/80 rounded-2xl p-4 mb-3 border border-dark-700/50 cursor-pointer relative overflow-hidden backdrop-blur-sm hover:border-dark-600 hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5 transition-all duration-200">
+                    <div onclick="viewPrompt('${prompt.id}')" class="prompt-card bg-dark-800/80 rounded-2xl p-4 mb-3 border border-dark-700/50 cursor-pointer relative overflow-hidden hover:border-dark-600 hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5">
                         <div class="absolute top-0 left-0 w-1 h-full ${prompt.confidence >= 0.7 ? 'bg-accent-emerald' : prompt.confidence >= 0.4 ? 'bg-accent-amber' : 'bg-red-500'}"></div>
                         ${prompt.attributes?.image?.intention ? `
                         <div class="absolute top-3 right-3">
