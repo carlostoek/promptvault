@@ -1947,6 +1947,7 @@ PROMPT TO ANALYZE:
                 btn.classList.toggle('active-filter', active);
             });
             applyFiltersAndRender();
+            updateFiltersCount();
         }
 
         function clearAllFilters() {
@@ -1975,6 +1976,7 @@ PROMPT TO ANALYZE:
             });
             renderActiveFilters();
             renderPrompts();
+            updateFiltersCount();
         }
 
         function applyFiltersAndRender() {
@@ -2007,6 +2009,18 @@ PROMPT TO ANALYZE:
             currentFilter[field] = value;
             renderActiveFilters();
             renderPrompts();
+            updateFiltersCount();
+        }
+
+        function updateFiltersCount() {
+            const count = [currentFilter.camera_angle, currentFilter.time_of_day, currentFilter.location, currentFilter.lighting_source, currentFilter.intention].filter(Boolean).length;
+            const badge = document.getElementById('active-filters-count');
+            if (count > 0) {
+                badge.textContent = count;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
         }
 
         function renderActiveFilters() {
