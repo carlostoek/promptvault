@@ -1691,6 +1691,27 @@ PROMPT TO ANALYZE:
                 if (currentFilter.category !== 'all' && currentFilter.category !== 'favorites' && p.type !== currentFilter.category) return false;
                 if (currentFilter.subcategory && p.subtype !== currentFilter.subcategory) return false;
                 if (currentFilter.tag && !(p.tags || []).includes(currentFilter.tag)) return false;
+                // Atomic filters on attributes JSONB
+                if (currentFilter.camera_angle) {
+                    const attr = p.attributes?.image?.camera?.angle;
+                    if (attr !== currentFilter.camera_angle) return false;
+                }
+                if (currentFilter.time_of_day) {
+                    const attr = p.attributes?.image?.time?.time_of_day;
+                    if (attr !== currentFilter.time_of_day) return false;
+                }
+                if (currentFilter.location) {
+                    const attr = p.attributes?.image?.environment?.location;
+                    if (attr !== currentFilter.location) return false;
+                }
+                if (currentFilter.lighting_source) {
+                    const attr = p.attributes?.image?.lighting?.source;
+                    if (attr !== currentFilter.lighting_source) return false;
+                }
+                if (currentFilter.intention) {
+                    const attr = p.attributes?.image?.intention;
+                    if (attr !== currentFilter.intention) return false;
+                }
                 if (currentFilter.search) {
                     const s = currentFilter.search.toLowerCase();
                     return p.title.toLowerCase().includes(s) ||
@@ -1989,6 +2010,7 @@ PROMPT TO ANALYZE:
             document.getElementById('suggestions-dropdown').classList.add('hidden');
             document.getElementById('filters-panel').classList.add('hidden');
             applyFiltersAndRender();
+            updateFiltersCount();
         }
 
         function applyFiltersAndRender() {
