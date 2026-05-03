@@ -140,10 +140,9 @@ app.get('/api/prompts/suggest', async (req, res) => {
     let results = await pool.query(`
       SELECT id, title, description, content, type, subtype, tags, attributes, confidence, favorite
       FROM prompts
-      WHERE ($1 = 'uncategorized' OR type != 'uncategorized')
       ORDER BY usage_count DESC, created DESC
       LIMIT 100
-    `, [query]);
+    `);
 
     const scored = results.rows.map(prompt => {
       let score = 0;
