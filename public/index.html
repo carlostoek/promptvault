@@ -1985,6 +1985,9 @@ PROMPT TO ANALYZE:
                 btn.classList.toggle('text-gray-300', !active);
                 btn.classList.toggle('border-dark-600', !active);
             });
+            document.getElementById('active-filters').classList.add('hidden');
+            document.getElementById('suggestions-dropdown').classList.add('hidden');
+            document.getElementById('filters-panel').classList.add('hidden');
             renderActiveFilters();
             renderPrompts();
             updateFiltersCount();
