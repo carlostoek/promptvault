@@ -149,11 +149,10 @@ app.get('/api/prompts/suggest', async (req, res) => {
       let score = 0;
       let reason = 'text_match';
 
-      // Title/description match (weight 1)
+      // Title/description match (weight 1) - spec: combined 1x
       const titleMatch = (prompt.title || '').toLowerCase().includes(query);
       const descMatch = (prompt.description || '').toLowerCase().includes(query);
-      if (titleMatch) score += 2;
-      if (descMatch) score += 1;
+      if (titleMatch || descMatch) score += 1;
 
       // Content match (weight 0.5)
       if ((prompt.content || '').toLowerCase().includes(query)) {
