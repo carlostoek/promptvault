@@ -81,8 +81,14 @@
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         input, textarea, select { outline: none; }
-        .category-pill { transition: all 0.2s ease; }
-        .category-pill:active { transform: scale(0.95); }
+        /* ─── Category Pills ───────────────────────────────────────────────────────── */
+        .category-pill, .intention-pill { transition: all 0.2s ease; }
+        .category-pill:active, .intention-pill:active { transform: scale(0.95); }
+        .category-pill.active-filter, .intention-pill.active-filter {
+            background: rgba(0, 212, 255, 0.2) !important;
+            color: #00d4ff !important;
+            border-color: rgba(0, 212, 255, 0.3) !important;
+        }
         .prompt-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
         .prompt-card:active { transform: scale(0.98); }
         .gradient-text {
@@ -155,38 +161,53 @@
                     oninput="handleSearch(this.value)">
             </div>
 
-            <!-- Atomic Filters -->
-            <div class="grid grid-cols-2 gap-2 mb-4">
-                <select id="filter-angle" onchange="applyAtomicFilter('camera_angle', this.value)" class="bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-sm text-gray-300 focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan">
-                    <option value="">Ángulo</option>
-                    <option value="eye_level">Eye Level</option>
-                    <option value="low_angle">Low Angle</option>
-                    <option value="high_angle">High Angle</option>
-                    <option value="dutch_angle">Dutch Angle</option>
-                    <option value="birds_eye">Bird's Eye</option>
-                    <option value="worms_eye">Worm's Eye</option>
-                </select>
-                <select id="filter-timeofday" onchange="applyAtomicFilter('time_of_day', this.value)" class="bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-sm text-gray-300 focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan">
-                    <option value="">Hora del día</option>
-                    <option value="morning">Morning</option>
-                    <option value="afternoon">Afternoon</option>
-                    <option value="golden_hour">Golden Hour</option>
-                    <option value="sunset">Sunset</option>
-                    <option value="blue_hour">Blue Hour</option>
-                    <option value="night">Night</option>
-                </select>
-                <select id="filter-location" onchange="applyAtomicFilter('location', this.value)" class="bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-sm text-gray-300 focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan">
-                    <option value="">Ubicación</option>
-                    <option value="indoor">Indoor</option>
-                    <option value="outdoor">Outdoor</option>
-                    <option value="studio">Studio</option>
-                </select>
-                <select id="filter-lighting" onchange="applyAtomicFilter('lighting_source', this.value)" class="bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-sm text-gray-300 focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan">
-                    <option value="">Iluminación</option>
-                    <option value="natural_sun">Natural Sun</option>
-                    <option value="artificial">Artificial</option>
-                    <option value="mixed">Mixed</option>
-                </select>
+            <!-- Collapsible Filters Toggle -->
+            <div class="flex items-center justify-between mb-3">
+                <button onclick="toggleFilters()" id="filters-toggle-btn"
+                    class="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-200 transition-colors">
+                    <svg class="w-4 h-4 transition-transform" id="filters-toggle-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                    <span>Filtros avanzados</span>
+                    <span id="active-filters-count" class="hidden px-1.5 py-0.5 rounded-full bg-accent-cyan/20 text-accent-cyan text-xs font-medium"></span>
+                </button>
+                <button onclick="clearAllFilters()" class="text-xs text-gray-500 hover:text-gray-300">Limpiar</button>
+            </div>
+
+            <!-- Collapsible Filters Panel -->
+            <div id="filters-panel" class="hidden mb-4">
+                <div class="grid grid-cols-2 gap-2">
+                    <select id="filter-angle" onchange="applyAtomicFilter('camera_angle', this.value)" class="bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-sm text-gray-300 focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan">
+                        <option value="">Ángulo</option>
+                        <option value="eye_level">Eye Level</option>
+                        <option value="low_angle">Low Angle</option>
+                        <option value="high_angle">High Angle</option>
+                        <option value="dutch_angle">Dutch Angle</option>
+                        <option value="birds_eye">Bird's Eye</option>
+                        <option value="worms_eye">Worm's Eye</option>
+                    </select>
+                    <select id="filter-timeofday" onchange="applyAtomicFilter('time_of_day', this.value)" class="bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-sm text-gray-300 focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan">
+                        <option value="">Hora del día</option>
+                        <option value="morning">Morning</option>
+                        <option value="afternoon">Afternoon</option>
+                        <option value="golden_hour">Golden Hour</option>
+                        <option value="sunset">Sunset</option>
+                        <option value="blue_hour">Blue Hour</option>
+                        <option value="night">Night</option>
+                    </select>
+                    <select id="filter-location" onchange="applyAtomicFilter('location', this.value)" class="bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-sm text-gray-300 focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan">
+                        <option value="">Ubicación</option>
+                        <option value="indoor">Indoor</option>
+                        <option value="outdoor">Outdoor</option>
+                        <option value="studio">Studio</option>
+                    </select>
+                    <select id="filter-lighting" onchange="applyAtomicFilter('lighting_source', this.value)" class="bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-sm text-gray-300 focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan">
+                        <option value="">Iluminación</option>
+                        <option value="natural_sun">Natural Sun</option>
+                        <option value="artificial">Artificial</option>
+                        <option value="mixed">Mixed</option>
+                    </select>
+                </div>
             </div>
 
             <!-- Category Pills -->
@@ -197,6 +218,16 @@
                 <button onclick="filterByCategory('video')" class="category-pill px-4 py-2 rounded-full bg-dark-700 text-gray-300 border border-dark-600 text-sm font-medium whitespace-nowrap" data-category="video">Video</button>
                 <button onclick="filterByCategory('code')" class="category-pill px-4 py-2 rounded-full bg-dark-700 text-gray-300 border border-dark-600 text-sm font-medium whitespace-nowrap" data-category="code">Código</button>
                 <button onclick="filterByCategory('uncategorized')" class="category-pill px-4 py-2 rounded-full bg-dark-700 text-gray-300 border border-dark-600 text-sm font-medium whitespace-nowrap" data-category="uncategorized">Otros</button>
+            </div>
+
+            <!-- Intention Pills -->
+            <div class="flex gap-2 overflow-x-auto hide-scrollbar pb-2" id="intention-filters">
+                <button onclick="filterByIntention('create')" class="intention-pill px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-medium whitespace-nowrap" data-intention="create">+ Crear</button>
+                <button onclick="filterByIntention('modify')" class="intention-pill px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-medium whitespace-nowrap" data-intention="modify">+ Modificar</button>
+                <button onclick="filterByIntention('improve')" class="intention-pill px-3 py-1.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-xs font-medium whitespace-nowrap" data-intention="improve">+ Mejorar</button>
+                <button onclick="filterByIntention('restyle')" class="intention-pill px-3 py-1.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20 text-xs font-medium whitespace-nowrap" data-intention="restyle">+ Estilo</button>
+                <button onclick="filterByIntention('restore')" class="intention-pill px-3 py-1.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 text-xs font-medium whitespace-nowrap" data-intention="restore">+ Restaurar</button>
+                <button onclick="filterByIntention('adapt')" class="intention-pill px-3 py-1.5 rounded-full bg-pink-500/10 text-pink-400 border border-pink-500/20 text-xs font-medium whitespace-nowrap" data-intention="adapt">+ Adaptar</button>
             </div>
 
             <!-- Active Filters -->
@@ -722,7 +753,7 @@
     <script>
         // ─── State ───────────────────────────────────────────────────────────────────
         let prompts = [];
-        let currentFilter = { category: 'all', subcategory: null, tag: null, search: '', camera_angle: '', time_of_day: '', location: '', lighting_source: '' };
+        let currentFilter = { category: 'all', subcategory: null, tag: null, search: '', camera_angle: '', time_of_day: '', location: '', lighting_source: '', intention: null };
         let currentViewPrompt = null;
         let extractedMetadata = null;
         let currentImage = null; // Imagen actual en base64
@@ -1902,6 +1933,55 @@ PROMPT TO ANALYZE:
         }
 
         // ─── Filters ─────────────────────────────────────────────────────────────────
+        function toggleFilters() {
+            const panel = document.getElementById('filters-panel');
+            const icon = document.getElementById('filters-toggle-icon');
+            panel.classList.toggle('hidden');
+            icon.classList.toggle('rotate-180');
+        }
+
+        function filterByIntention(intention) {
+            currentFilter.intention = currentFilter.intention === intention ? null : intention;
+            document.querySelectorAll('.intention-pill').forEach(btn => {
+                const active = btn.dataset.intention === currentFilter.intention;
+                btn.classList.toggle('active-filter', active);
+            });
+            applyFiltersAndRender();
+        }
+
+        function clearAllFilters() {
+            currentFilter.subcategory = null;
+            currentFilter.tag = null;
+            currentFilter.camera_angle = '';
+            currentFilter.time_of_day = '';
+            currentFilter.location = '';
+            currentFilter.lighting_source = '';
+            currentFilter.intention = null;
+            currentFilter.search = '';
+            document.getElementById('search-input').value = '';
+            document.getElementById('filter-angle').value = '';
+            document.getElementById('filter-timeofday').value = '';
+            document.getElementById('filter-location').value = '';
+            document.getElementById('filter-lighting').value = '';
+            document.querySelectorAll('.intention-pill').forEach(btn => btn.classList.remove('active-filter'));
+            document.querySelectorAll('.category-pill').forEach(btn => {
+                const active = btn.dataset.category === 'all';
+                btn.classList.toggle('bg-accent-cyan/20', active);
+                btn.classList.toggle('text-accent-cyan', active);
+                btn.classList.toggle('border-accent-cyan/30', active);
+                btn.classList.toggle('bg-dark-700', !active);
+                btn.classList.toggle('text-gray-300', !active);
+                btn.classList.toggle('border-dark-600', !active);
+            });
+            renderActiveFilters();
+            renderPrompts();
+        }
+
+        function applyFiltersAndRender() {
+            renderActiveFilters();
+            renderPrompts();
+        }
+
         function filterByCategory(category) {
             currentFilter.category   = category;
             currentFilter.subcategory = null;
@@ -1939,6 +2019,7 @@ PROMPT TO ANALYZE:
             if (currentFilter.time_of_day) filters.push({ type: 'time_of_day', label: `Hora: ${currentFilter.time_of_day}` });
             if (currentFilter.location)  filters.push({ type: 'location', label: `Lugar: ${currentFilter.location}` });
             if (currentFilter.lighting_source) filters.push({ type: 'lighting_source', label: `Luz: ${currentFilter.lighting_source}` });
+            if (currentFilter.intention) filters.push({ type: 'intention', label: `Intención: ${currentFilter.intention}` });
             if (!filters.length) { container.classList.add('hidden'); return; }
             container.classList.remove('hidden');
             container.innerHTML = filters.map(f => `
@@ -1956,6 +2037,10 @@ PROMPT TO ANALYZE:
             if (type === 'time_of_day')   currentFilter.time_of_day = '';
             if (type === 'location')    currentFilter.location = '';
             if (type === 'lighting_source') currentFilter.lighting_source = '';
+            if (type === 'intention') {
+                currentFilter.intention = null;
+                document.querySelectorAll('.intention-pill').forEach(btn => btn.classList.remove('active-filter'));
+            }
             // Reset selects
             document.getElementById('filter-angle').value = '';
             document.getElementById('filter-timeofday').value = '';
@@ -1991,6 +2076,10 @@ PROMPT TO ANALYZE:
                 if (currentFilter.lighting_source) {
                     const attr = p.attributes?.image?.lighting?.source;
                     if (attr !== currentFilter.lighting_source) return false;
+                }
+                if (currentFilter.intention) {
+                    const attr = p.attributes?.image?.intention;
+                    if (attr !== currentFilter.intention) return false;
                 }
                 if (currentFilter.search) {
                     const s = currentFilter.search.toLowerCase();
