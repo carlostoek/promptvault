@@ -477,6 +477,7 @@
                 <h2 id="view-title" class="text-xl font-bold mb-1"></h2>
                 <p id="view-description" class="text-sm text-gray-400 mb-3"></p>
                 <div id="view-meta" class="flex flex-wrap gap-2 mb-4">
+                    <span id="view-intention" class="px-2 py-1 rounded-lg text-xs capitalize hidden"></span>
                     <span id="view-subtype" class="px-2 py-1 rounded-lg bg-dark-700 text-gray-300 text-xs capitalize"></span>
                     <span id="view-confidence" class="px-2 py-1 rounded-lg text-xs"></span>
                 </div>
@@ -1668,6 +1669,17 @@ PROMPT TO ANALYZE:
             document.getElementById('view-description').textContent = prompt.description || 'Sin descripción';
             document.getElementById('view-subtype').textContent     = prompt.subtype || 'other';
 
+            // Set intention badge
+            const intention = prompt.attributes?.image?.intention;
+            const viewIntention = document.getElementById('view-intention');
+            if (intention) {
+                viewIntention.textContent = intention;
+                viewIntention.className = `px-2 py-1 rounded-lg text-xs capitalize ${getIntentionColor(intention)}`;
+                viewIntention.classList.remove('hidden');
+            } else {
+                viewIntention.classList.add('hidden');
+            }
+
             const confEl  = document.getElementById('view-confidence');
             const confPct = Math.round((prompt.confidence || 0) * 100);
             confEl.textContent = `${confPct}% confianza`;
@@ -2006,6 +2018,7 @@ PROMPT TO ANALYZE:
                     <div onclick="viewPrompt('${prompt.id}')" class="prompt-card bg-dark-800 rounded-2xl p-4 mb-3 border border-dark-700 cursor-pointer relative overflow-hidden">
                         <div class="absolute top-0 left-0 w-1 h-full ${prompt.confidence >= 0.7 ? 'bg-accent-emerald' : prompt.confidence >= 0.4 ? 'bg-accent-amber' : 'bg-red-500'}"></div>
                         ${prompt.favorite ? '<div class="absolute top-2 right-2 text-red-500"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg></div>' : ''}
+                        ${prompt.attributes?.image?.intention ? `<div class="absolute top-2 ${prompt.favorite ? 'left-2' : 'right-2'} px-2 py-0.5 rounded-md text-xs font-medium capitalize ${getIntentionColor(prompt.attributes.image.intention)}">${prompt.attributes.image.intention}</div>` : ''}
                         <div class="pl-3 ${prompt.favorite ? 'pr-6' : ''}">
                             <div class="flex items-start justify-between mb-2">
                                 <div class="flex items-center gap-2 flex-wrap">
@@ -2204,6 +2217,18 @@ PROMPT TO ANALYZE:
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        function getIntentionColor(intention) {
+            const colors = {
+                'create': 'bg-emerald-500/20 text-emerald-400',
+                'modify': 'bg-amber-500/20 text-amber-400',
+                'improve': 'bg-cyan-500/20 text-cyan-400',
+                'restyle': 'bg-purple-500/20 text-purple-400',
+                'restore': 'bg-orange-500/20 text-orange-400',
+                'adapt': 'bg-pink-500/20 text-pink-400'
+            };
+            return colors[intention] || 'bg-gray-500/20 text-gray-400';
         }
 
         function showToast(message) {
