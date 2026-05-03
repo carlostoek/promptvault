@@ -1988,9 +1988,7 @@ PROMPT TO ANALYZE:
             document.getElementById('active-filters').classList.add('hidden');
             document.getElementById('suggestions-dropdown').classList.add('hidden');
             document.getElementById('filters-panel').classList.add('hidden');
-            renderActiveFilters();
-            renderPrompts();
-            updateFiltersCount();
+            applyFiltersAndRender();
         }
 
         function applyFiltersAndRender() {
