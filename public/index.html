@@ -1300,9 +1300,24 @@ JSON STRUCTURE TO RETURN:
 "vignette": true,
 "film_grain": true
 },
+"intention": "create | modify | improve | restyle | restore | adapt",
+"intention_confidence": 0.9,
 "mood": ["nostalgic", "dramatic", "peaceful", "cyberpunk", "minimalist", "romantic"]
 }
 }
+
+INTENTION EXAMPLES:
+- "Create a cinematic portrait of a woman in a forest" → intention: "create", intention_confidence: 0.95
+- "Add dramatic lighting to this portrait" → intention: "modify", intention_confidence: 0.88
+- "Enhance the colors and reduce grain" → intention: "improve", intention_confidence: 0.92
+- "Give this photo a vintage 1970s aesthetic" → intention: "restyle", intention_confidence: 0.90
+- "Make this portrait look like aged film from the 1950s" → intention: "restore", intention_confidence: 0.85
+- "Convert this horizontal image to vertical for Instagram" → intention: "adapt", intention_confidence: 0.93
+
+INTENTION RULES:
+- "intention" is mandatory. Infer from action verbs: create/make/generate → create; add/change/modify → modify; enhance/improve/refine → improve; style/aesthetic/look like → restyle; age/deteriorate/worn → restore; convert/resize/reformat → adapt
+- If ambiguous, set to null and intention_confidence to 0.3
+- "intention_confidence" reflects certainty (0.0-1.0)
 
 PROMPT TO ANALYZE:
 [PROMPT]
