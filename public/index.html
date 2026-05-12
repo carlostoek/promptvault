@@ -585,6 +585,8 @@
                     <select id="model-select"
                         class="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-3 text-sm focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan transition-all appearance-none">
                         <!-- DeepSeek models -->
+                        <option value="deepseek-v4-pro">🚀 DeepSeek V4 Pro</option>
+                        <option value="deepseek-v4-flash">⚡ DeepSeek V4 Flash</option>
                         <option value="deepseek-chat">🤖 DeepSeek Chat</option>
                         <option value="deepseek-coder">💻 DeepSeek Coder</option>
                     </select>
@@ -783,7 +785,7 @@
         const CONFIG = {
             provider: localStorage.getItem('pv_provider') || 'deepseek',
             apiKey: localStorage.getItem('pv_api_key') || '',
-            model: localStorage.getItem('pv_model') || 'deepseek-chat'
+            model: localStorage.getItem('pv_model') || 'deepseek-v4-flash'
         };
 
         // ─── Category config ──────────────────────────────────────────────────────────
@@ -1232,6 +1234,8 @@
                 label.textContent = 'DeepSeek API Key';
                 help.innerHTML = 'Necesaria para la extracción de metadata con IA. <a href="https://platform.deepseek.com/api-keys" target="_blank" class="text-accent-cyan underline">Obtener key →</a>';
                 modelSelect.innerHTML = `
+                    <option value="deepseek-v4-pro">🚀 DeepSeek V4 Pro</option>
+                    <option value="deepseek-v4-flash">⚡ DeepSeek V4 Flash</option>
                     <option value="deepseek-chat">🤖 DeepSeek Chat</option>
                     <option value="deepseek-coder">💻 DeepSeek Coder</option>
                 `;
