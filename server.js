@@ -502,13 +502,14 @@ app.get('/api/workflows/prompt/:promptId', async (req, res) => {
 
 // POST log AI parse error → console.error for Railway
 app.post('/api/logs/ai-error', (req, res) => {
-  const { aiResponse, provider, model, promptLength, error } = req.body;
+  const { provider, model, promptLength, error, aiResponse, fullApiResponse } = req.body;
   console.error('🤖 AI PARSE ERROR');
   console.error('Provider:', provider);
   console.error('Model:', model);
   console.error('Prompt length:', promptLength);
   console.error('Error:', error);
   console.error('AI Response:', aiResponse);
+  console.error('Full API Response:', JSON.stringify(fullApiResponse, null, 2));
   res.json({ logged: true });
 });
 

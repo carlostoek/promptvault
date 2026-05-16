@@ -1437,11 +1437,12 @@ PROMPT TO ANALYZE:
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            aiResponse,
                             provider: CONFIG.provider,
                             model: CONFIG.model,
                             promptLength: content.length,
-                            error: e.message
+                            error: e.message,
+                            aiResponse,
+                            fullApiResponse: data
                         })
                     }).catch(() => {});
                     throw new Error('No se pudo parsear la respuesta de la IA');
