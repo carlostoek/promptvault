@@ -94,6 +94,52 @@
           backdrop-filter: blur(8px);
         }
         .prompt-card:active { transform: scale(0.98); }
+        /* ─── View Modes ────────────────────────────────────────────────────────── */
+        .view-mode-btn { color: #6b7280; }
+        .view-mode-btn.active-view { background: rgba(0, 212, 255, 0.2); color: #00d4ff; }
+        .prompts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+        .prompts-compact .prompt-card-compact {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+        }
+        .prompt-grid-card {
+            position: relative;
+            border-radius: 1rem;
+            overflow: hidden;
+            aspect-ratio: 1;
+            background: #1a1a24;
+            border: 1px solid rgba(50, 50, 66, 0.5);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .prompt-grid-card:active { transform: scale(0.97); }
+        .prompt-grid-card .grid-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .prompt-grid-card .grid-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(10,10,15,0.95));
+            padding: 2rem 0.75rem 0.75rem;
+        }
+        .prompt-grid-card .grid-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+        }
         .gradient-text {
             background: linear-gradient(135deg, #00d4ff 0%, #a855f7 100%);
             -webkit-background-clip: text;
@@ -182,7 +228,21 @@
                     <span>Filtros avanzados</span>
                     <span id="active-filters-count" class="hidden px-1.5 py-0.5 rounded-full bg-accent-cyan/20 text-accent-cyan text-xs font-medium"></span>
                 </button>
-                <button onclick="clearAllFilters()" class="text-xs text-gray-500 hover:text-gray-300">Limpiar</button>
+                <div class="flex items-center gap-2">
+                    <!-- View Mode Toggle -->
+                    <div class="flex items-center bg-dark-800 rounded-xl p-0.5 border border-dark-700">
+                        <button onclick="setViewMode('cards')" id="view-btn-cards" class="view-mode-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all" data-mode="cards" title="Tarjetas">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                        </button>
+                        <button onclick="setViewMode('compact')" id="view-btn-compact" class="view-mode-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all" data-mode="compact" title="Compacto">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                        </button>
+                        <button onclick="setViewMode('grid')" id="view-btn-grid" class="view-mode-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all" data-mode="grid" title="Cuadrícula">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>
+                        </button>
+                    </div>
+                    <button onclick="clearAllFilters()" class="text-xs text-gray-500 hover:text-gray-300">Limpiar</button>
+                </div>
             </div>
 
             <!-- Collapsible Filters Panel -->
@@ -778,6 +838,7 @@
         let isSearchMode = false;
         let searchQuery = '';
         let searchDebounceTimer = null;
+        let currentViewMode = localStorage.getItem('pv_view_mode') || 'cards';
         let currentPromptIndex = -1;
         let currentFilteredPrompts = [];
         let workflows = [];
@@ -905,7 +966,8 @@
         // ─── Initialize ───────────────────────────────────────────────────────────────
         document.addEventListener('DOMContentLoaded', async () => {
             await loadPrompts();
-            renderPrompts();
+            // Restaurar modo de vista guardado
+            setViewMode(currentViewMode);
             updateStats();
             checkApiKey();
             document.getElementById('api-key-input').value = CONFIG.apiKey;
@@ -2000,6 +2062,16 @@ PROMPT TO ANALYZE:
             updateFiltersCount();
         }
 
+        // ─── View Mode ────────────────────────────────────────────────────────────────
+        function setViewMode(mode) {
+            currentViewMode = mode;
+            localStorage.setItem('pv_view_mode', mode);
+            document.querySelectorAll('.view-mode-btn').forEach(btn => {
+                btn.classList.toggle('active-view', btn.dataset.mode === mode);
+            });
+            renderPrompts();
+        }
+
         function clearAllFilters() {
             currentFilter.subcategory = null;
             currentFilter.tag = null;
@@ -2261,18 +2333,68 @@ PROMPT TO ANALYZE:
             }
 
             emptyState.classList.add('hidden');
+
+            // Aplicar clase de layout según modo
+            container.className = currentViewMode === 'grid' ? 'px-4 py-4 prompts-grid' :
+                                 currentViewMode === 'compact' ? 'px-4 py-4 prompts-compact' :
+                                 'px-4 py-4';
+
             container.innerHTML = filtered.map(prompt => {
                 const cfg = CATEGORY_CONFIG[prompt.type] || CATEGORY_CONFIG.uncategorized;
                 const confidenceColor = prompt.confidence >= 0.7 ? 'text-accent-emerald' : prompt.confidence >= 0.4 ? 'text-accent-amber' : 'text-red-400';
                 const hasImage = prompt.image && prompt.image.length > 0;
+                const intention = prompt.attributes?.image?.intention;
+
+                if (currentViewMode === 'grid') {
+                    return `
+                        <div onclick="viewPrompt('${prompt.id}')" class="prompt-grid-card">
+                            ${hasImage
+                                ? `<img src="${prompt.image}" alt="" class="grid-img" loading="lazy">`
+                                : `<div class="grid-placeholder" style="background:${cfg.bg}">${cfg.icon}</div>`
+                            }
+                            <div class="grid-overlay">
+                                <div class="flex items-center gap-1.5 mb-1">
+                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-medium ${cfg.bg} ${cfg.text}">${cfg.icon}</span>
+                                    ${intention ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-medium ${getIntentionColor(intention)}">${intention}</span>` : ''}
+                                    ${prompt.favorite ? '<span class="text-red-500 text-[10px]">❤️</span>' : ''}
+                                </div>
+                                <h3 class="text-xs font-semibold text-white line-clamp-2 leading-tight">${escapeHtml(prompt.title)}</h3>
+                                ${(prompt.tags || []).length ? `<p class="text-[10px] text-gray-400 mt-1 line-clamp-1">${prompt.tags.slice(0, 3).map(t => '#' + escapeHtml(t)).join(' ')}</p>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                if (currentViewMode === 'compact') {
+                    return `
+                        <div onclick="viewPrompt('${prompt.id}')" class="prompt-card-compact bg-dark-800/80 rounded-xl border border-dark-700/50 cursor-pointer hover:border-dark-600 active:scale-[0.99] transition-all mb-1.5">
+                            <div class="w-1.5 h-1.5 rounded-full flex-shrink-0 ${prompt.confidence >= 0.7 ? 'bg-accent-emerald' : prompt.confidence >= 0.4 ? 'bg-accent-amber' : 'bg-red-500'}"></div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm font-medium text-gray-100 truncate">${escapeHtml(prompt.title)}</span>
+                                    ${intention ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${getIntentionColor(intention)}">${intention}</span>` : ''}
+                                    ${prompt.favorite ? '<span class="text-red-500 text-[10px] flex-shrink-0">❤️</span>' : ''}
+                                </div>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <span class="text-[10px] ${cfg.text}">${cfg.icon} ${prompt.type}</span>
+                                    ${prompt.subtype && prompt.subtype !== 'other' ? `<span class="text-[10px] text-gray-500">· ${prompt.subtype}</span>` : ''}
+                                    <span class="text-[10px] ${confidenceColor} ml-auto flex-shrink-0">${Math.round((prompt.confidence || 0) * 100)}%</span>
+                                    ${(prompt.tags || []).length ? `<span class="text-[10px] text-gray-600 hidden sm:inline">· ${prompt.tags.slice(0, 3).map(t => '#' + escapeHtml(t)).join(' ')}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Default: cards view
                 return `
                     <div onclick="viewPrompt('${prompt.id}')" class="prompt-card bg-dark-800/80 rounded-2xl p-4 mb-3 border border-dark-700/50 cursor-pointer relative overflow-hidden hover:border-dark-600 hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5">
                         <div class="absolute top-0 left-0 w-1 h-full ${prompt.confidence >= 0.7 ? 'bg-accent-emerald' : prompt.confidence >= 0.4 ? 'bg-accent-amber' : 'bg-red-500'}"></div>
-                        ${prompt.attributes?.image?.intention ? `
+                        ${intention ? `
                         <div class="absolute top-3 right-3">
-                            <span class="px-2 py-1 rounded-md text-xs font-medium ${getIntentionColor(prompt.attributes.image.intention)}">${prompt.attributes.image.intention}</span>
+                            <span class="px-2 py-1 rounded-md text-xs font-medium ${getIntentionColor(intention)}">${intention}</span>
                         </div>` : ''}
-                        <div class="pl-3 ${prompt.favorite || prompt.attributes?.image?.intention ? 'pr-12' : ''}">
+                        <div class="pl-3 ${prompt.favorite || intention ? 'pr-12' : ''}">
                             <div class="flex items-start justify-between mb-2">
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <span class="px-2 py-1 rounded-lg ${cfg.bg} ${cfg.text} text-xs font-medium capitalize">
@@ -2280,7 +2402,7 @@ PROMPT TO ANALYZE:
                                     </span>
                                     ${prompt.subtype && prompt.subtype !== 'other' ? `<span class="text-xs text-gray-500 capitalize">${prompt.subtype}</span>` : ''}
                                 </div>
-                                ${!prompt.attributes?.image?.intention && prompt.favorite ? '<div class="absolute top-2 right-2 text-red-500"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg></div>' : ''}
+                                ${!intention && prompt.favorite ? '<div class="absolute top-2 right-2 text-red-500"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg></div>' : ''}
                                 <span class="text-xs ${confidenceColor}">${Math.round((prompt.confidence || 0) * 100)}%</span>
                             </div>
                             <h3 class="font-semibold text-gray-100 mb-1 line-clamp-1">${escapeHtml(prompt.title)}</h3>
@@ -2294,7 +2416,7 @@ PROMPT TO ANALYZE:
                             ` : ''}
                             ${hasImage ? `
                                 <div class="mt-3 rounded-lg overflow-hidden border border-dark-600">
-                                    <img src="${prompt.image}" alt="Preview" class="w-full h-24 object-cover opacity-80">
+                                    <img src="${prompt.image}" alt="Preview" class="w-full h-24 object-cover opacity-80" loading="lazy">
                                 </div>
                             ` : ''}
                         </div>
