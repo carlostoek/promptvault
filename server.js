@@ -89,10 +89,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/api/prompts', async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 20, 50);
   const offset = parseInt(req.query.offset) || 0;
+  const ALLOWED_SORTS = ['created', 'usage_count', 'confidence', 'title'];
+  const ALLOWED_ORDERS = ['asc', 'desc'];
+  const sort = ALLOWED_SORTS.includes(req.query.sort) ? req.query.sort : 'created';
+  const order = ALLOWED_ORDERS.includes(req.query.order) ? req.query.order.toUpperCase() : 'DESC';
 
   try {
     const [result, countResult] = await Promise.all([
-      pool.query('SELECT * FROM prompts ORDER BY created DESC LIMIT $1 OFFSET $2', [limit, offset]),
+      pool.query(`SELECT * FROM prompts ORDER BY ${sort} ${order} LIMIT $1 OFFSET $2`, [limit, offset]),
       pool.query('SELECT COUNT(*) FROM prompts')
     ]);
     const total = parseInt(countResult.rows[0].count);
@@ -209,8 +213,12 @@ app.get('/api/prompts/suggest', async (req, res) => {
 
 // GET search prompts — server-side full-text search with pagination
 app.get('/api/prompts/search', async (req, res) => {
-  const { q, limit = 20, offset = 0 } = req.query;
+  const { q, limit = 20, offset = 0, sort: rawSort, order: rawOrder } = req.query;
   const searchQuery = (q || '').trim();
+  const ALLOWED_SORTS = ['created', 'usage_count', 'confidence', 'title'];
+  const ALLOWED_ORDERS = ['asc', 'desc'];
+  const sort = ALLOWED_SORTS.includes(rawSort) ? rawSort : 'created';
+  const order = ALLOWED_ORDERS.includes(rawOrder) ? rawOrder.toUpperCase() : 'DESC';
 
   if (!searchQuery || searchQuery.length < 2) {
     return res.json({
@@ -226,7 +234,7 @@ app.get('/api/prompts/search', async (req, res) => {
       pool.query(
         `SELECT * FROM prompts
          WHERE title ILIKE $1 OR content ILIKE $1 OR tags::text ILIKE $1
-         ORDER BY created DESC
+         ORDER BY ${sort} ${order}
          LIMIT $2 OFFSET $3`,
         [likePattern, parseInt(limit), parseInt(offset)]
       ),
